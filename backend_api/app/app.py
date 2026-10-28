@@ -2,8 +2,17 @@ from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse
 from utils.llm import ask_the_llm
 # add ddtrace import here
+# enable Agent Observability
+from ddtrace.llmobs import LLMObs
 
 # add ddtrace method to enable Agent Observability here
+import os
+
+LLMObs.enable(
+  ml_app=os.getenv("DD_LLMOBS_ML_APP"),
+  api_key=os.getenv("DD_API_KEY"),
+  site=os.getenv("DD_SITE"),
+)
 
 app = FastAPI()
 

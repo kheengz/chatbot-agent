@@ -8,6 +8,9 @@ class Config(BaseSettings):
     LLM_PORT: str = os.getenv("LLM_PORT")
     SYSTEM_PROMPT_PATH: str = "./prompts/system-prompt-concise.txt"
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
+    EMBED_MODEL: str = os.getenv("EMBED_MODEL", "nomic-embed-text:v1.5")
+    EMBED_BASE_URL: str = os.getenv("EMBED_BASE_URL")
+    EMBED_PORT: str = os.getenv("EMBED_PORT")
 
     def __getattr__(self, item):
         """

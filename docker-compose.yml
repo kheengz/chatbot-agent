@@ -70,7 +70,7 @@ services:
     command: [
         "sh",
         "-c",
-        "ddtrace-run uvicorn app:app --host ${FASTAPI_HOST} --port
+        "uvicorn app:app --host ${FASTAPI_HOST} --port
         ${FASTAPI_PORT:-8000} --reload",
       ]
     restart: on-failure

@@ -1,3 +1,4 @@
+# instrumented for Datadog
 services:
   chatbot_app:
     container_name: chatbot
@@ -44,6 +45,7 @@ services:
       - "${FASTAPI_PORT}:${FASTAPI_PORT}"
     volumes:
       - ./backend_api/app:/app
+      - ./chroma_data:/chroma/data
     environment:
       - FASTAPI_PORT=${FASTAPI_PORT:-8000}
       - LLM_MODEL=${LLM_MODEL}
@@ -51,10 +53,13 @@ services:
       - LLM_PORT=${LLM_PORT:-11434}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OLLAMA_DEFAULT_PORT=${OLLAMA_DEFAULT_PORT:-11434}
+      - CHROMADB_PORT=${CHROMADB_PORT:-8000}
+      - CHROMADB_HOST=${CHROMADB_HOST:-vector-store}
       # Datadog env vars always recommended
+      - CHROMA_DATA_DIR=/chroma/data
       - DD_ENV=${DD_ENV:-qh-local}
       - DD_SERVICE=${DD_SERVICE:-quantumhound-api}
-      - DD_VERSION=${DD_VERSION:-1.1.0}
+      - DD_VERSION=${DD_VERSION:-1.2.0}
       # Required for Agent Observability
       - DD_SITE=${DD_SITE:-datadoghq.com}
       - DD_API_KEY=${DD_API_KEY}
@@ -65,13 +70,57 @@ services:
     command: [
         "sh",
         "-c",
-        # remove the ddtrace-run command from the line below, but leave the rest unchanged
         "ddtrace-run uvicorn app:app --host ${FASTAPI_HOST} --port
         ${FASTAPI_PORT:-8000} --reload",
       ]
     restart: on-failure
     depends_on:
       - llm
+    networks:
+      - llm_app
+  text_embedder:
+    container_name: text-embedder
+    image: ollama/ollama:0.21.2
+    ports:
+      - "${EMBED_PORT}:${OLLAMA_DEFAULT_PORT}"
+    environment:
+      - EMBED_MODEL=${EMBED_MODEL}
+      - MODEL=${EMBED_MODEL}
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - llm_app
+  vector_store:
+    container_name: vector-store
+    image: chromadb/chroma:1.5.8
+    ports:
+      - "${CHROMADB_PORT}:8000"
+    environment:
+      - ANONYMIZED_TELEMETRY=false
+    volumes:
+      - ./chroma_data:/chroma/data # Persistent storage for embeddings
+    networks:
+      - llm_app
+  kb_service:
+    container_name: kb-service
+    image: workshop-llm-obs-kb-service-base:latest
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      - EMBED_PORT=${OLLAMA_DEFAULT_PORT:-11434}
+      - EMBED_BASE_URL=${EMBED_BASE_URL:-http://text-embedder}
+      - EMBED_MODEL=${EMBED_MODEL:-nomic-embed-text:v1.5}
+      - CHROMADB_PORT=${CHROMADB_PORT:-8000}
+      - CHROMADB_HOST=${CHROMADB_HOST:-vector-store}
+      - CHROMA_DATA_DIR=/chroma/data
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANONYMIZED_TELEMETRY=false
+      # Add Datadog env vars for Agent Observability here
+    volumes:
+      - ./kb-service:/app
+      - ./chroma_data:/chroma/data
+    depends_on:
+      - text_embedder
+      - vector_store
     networks:
       - llm_app
 

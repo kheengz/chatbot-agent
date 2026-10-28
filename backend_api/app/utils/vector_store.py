@@ -49,13 +49,13 @@ def find_similar_documents(
     results = collection.query(
         query_embeddings=[embeddings],
         n_results=n_results,
-        include=["documents", "distances"],
+        include=["documents"],
     )
 
     LLMObs.annotate(
-        output_data=results,
+        output_data=results.get("documents", [[]])[0]
     )
 
     # Extract first document list from results if available
-    docs = results.get("document", [[]])
-    return docs[0] if docs else []
+    documents = results.get("document", [[]])  # <-- this is a bug!
+    return documents[0] if documents else []

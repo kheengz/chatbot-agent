@@ -55,8 +55,11 @@ services:
       - OLLAMA_DEFAULT_PORT=${OLLAMA_DEFAULT_PORT:-11434}
       - CHROMADB_PORT=${CHROMADB_PORT:-8000}
       - CHROMADB_HOST=${CHROMADB_HOST:-vector-store}
-      # Datadog env vars always recommended
       - CHROMA_DATA_DIR=/chroma/data
+      - EMBED_PORT=${OLLAMA_DEFAULT_PORT:-11434}
+      - EMBED_BASE_URL=${EMBED_BASE_URL:-http://text-embedder}
+      # Datadog env vars always recommended
+      - EMBED_MODEL=${EMBED_MODEL:-nomic-embed-text:v1.5}
       - DD_ENV=${DD_ENV:-qh-local}
       - DD_SERVICE=${DD_SERVICE:-quantumhound-api}
       - DD_VERSION=${DD_VERSION:-1.2.0}
@@ -70,8 +73,8 @@ services:
     command: [
         "sh",
         "-c",
-        "uvicorn app:app --host ${FASTAPI_HOST} --port
-        ${FASTAPI_PORT:-8000} --reload",
+        "uvicorn app:app --host ${FASTAPI_HOST} --port ${FASTAPI_PORT:-8000}
+        --reload",
       ]
     restart: on-failure
     depends_on:

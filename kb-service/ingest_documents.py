@@ -7,17 +7,25 @@ from utils import (
     clear_collections,
 )
 # add ddtrace imports here
+from ddtrace.llmobs import LLMObs
+from ddtrace.llmobs.decorators import workflow, tool, embedding
 
 
 
 # Add LLMObs method to enable Agent Observability here
-
+LLMObs.enable(
+  ml_app=os.getenv("DD_LLMOBS_ML_APP"),
+  api_key=os.getenv("DD_API_KEY"),
+  site=os.getenv("DD_SITE"),
+  agentless_enabled=os.getenv("DD_LLMOBS_AGENTLESS_ENABLED"), # optional
+)
 
 
 
 
 
 # add decorator on this line
+@embedding
 def create_document_embeddings(
     document: str, topic: str
 ) -> Tuple[List[float], Dict[str, str]]:
@@ -31,6 +39,7 @@ def create_document_embeddings(
         return [], {"status": "error", "error": str(e)}
 
 # add decorator on this line
+@tool
 def store_document(
     document: str, embeddings: List[float], topic: str
 ) -> Dict[str, str]:
@@ -44,6 +53,7 @@ def store_document(
         return {"message": f"Error storing document: {e}"}
 
 # add decorator on this line
+@workflow
 def process_document(document: str, topic: str) -> Dict[str, str]:
     """
     Process a single document by creating embeddings and storing it.

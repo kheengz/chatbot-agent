@@ -1,0 +1,86 @@
+services:
+  chatbot_app:
+    container_name: chatbot
+    image: workshop-llm-obs-chatbot-base:latest
+    ports:
+      - "${STREAMLIT_PORT}:${STREAMLIT_PORT}"
+    environment:
+      - STREAMLIT_PORT=${STREAMLIT_PORT:-8501}
+      - STREAMLIT_URL=${STREAMLIT_URL:-0.0.0.0}
+      - FASTAPI_PORT=${FASTAPI_PORT:-8000}
+      - FASTAPI_BASE_URL=${FASTAPI_BASE_URL:-http://api}
+    command: [
+        "sh",
+        "-c",
+        "streamlit run app.py --server.port=${STREAMLIT_PORT:-8501}
+        --server.address=${STREAMLIT_URL:-0.0.0.0}",
+      ]
+    depends_on:
+      - backend_api
+    volumes:
+      - ./chatbot/app:/app
+    networks:
+      - llm_app
+  llm:
+    container_name: locallama
+    image: ollama/ollama:0.21.2
+    ports:
+      - "${LLM_PORT}:${LLM_PORT}"
+    environment:
+      - LLM_MODEL=${LLM_MODEL}
+      - MODEL=${LLM_MODEL}
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - llm_app
+    deploy:
+      resources:
+        limits:
+          memory: 4GiB
+  backend_api:
+    container_name: api
+    image: workshop-llm-obs-backend-api-base:latest
+    ports:
+      - "${FASTAPI_PORT}:${FASTAPI_PORT}"
+    volumes:
+      - ./backend_api/app:/app
+    environment:
+      - FASTAPI_PORT=${FASTAPI_PORT:-8000}
+      - LLM_MODEL=${LLM_MODEL}
+      - LLM_BASE_URL=${LLM_BASE_URL:-http://locallama}
+      - LLM_PORT=${LLM_PORT:-11434}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OLLAMA_DEFAULT_PORT=${OLLAMA_DEFAULT_PORT:-11434}
+      # Datadog env vars always recommended
+      - DD_ENV=${DD_ENV:-qh-local}
+      - DD_SERVICE=${DD_SERVICE:-quantumhound-api}
+      - DD_VERSION=${DD_VERSION:-1.1.0}
+      # Required for Agent Observability
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_LLMOBS_ENABLED=1
+      - DD_LLMOBS_ML_APP=quantumhound-chatbot
+      # Only required if the Datadog Agent is not running
+      - DD_LLMOBS_AGENTLESS_ENABLED=1
+    command: [
+        "sh",
+        "-c",
+        # remove the ddtrace-run command from the line below, but leave the rest unchanged
+        "ddtrace-run uvicorn app:app --host ${FASTAPI_HOST} --port
+        ${FASTAPI_PORT:-8000} --reload",
+      ]
+    restart: on-failure
+    depends_on:
+      - llm
+    networks:
+      - llm_app
+
+volumes:
+  ollama_models:
+    external: true
+    name: ollama_models
+
+networks:
+  llm_app:
+    name: llm_app
+    driver: bridge
